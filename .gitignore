@@ -26,5 +26,3 @@ demo_conversation/
 *.out
 *.synctex.gz
 
-# Large local model artifacts
-model/JaiTTS-F5TTS/model.pt
