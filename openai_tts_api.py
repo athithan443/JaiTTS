@@ -40,6 +40,7 @@ class SpeechRequest(BaseModel):
     speed: float = 1.0
     reference_audio_path: Optional[str] = None
     reference_text: Optional[str] = None
+    latency_preset: Optional[str] = None
 
 
 class SaveWavRequest(BaseModel):
@@ -318,6 +319,51 @@ THAI_VOWEL_CHARS = set("ะาำิีึืุูเแโใไๅ")
 THAI_TONE_MARKS = set("่้๊๋")
 
 
+def _auto_tune_realtime_preset() -> Dict[str, float]:
+    has_cuda = bool(torch.cuda.is_available())
+    cpu_cores = max(1, os.cpu_count() or 1)
+
+    # Prioritize latency for conversational, real-time interactions.
+    if has_cuda:
+        preset: Dict[str, float] = {
+            "nfe_step": 4,
+            "max_chars": 120,
+            "chunk_silence": 0.0,
+            "speed_mult": 1.22,
+            "min_chars": 24,
+        }
+    else:
+        preset = {
+            "nfe_step": 5,
+            "max_chars": 90,
+            "chunk_silence": 0.0,
+            "speed_mult": 1.25,
+            "min_chars": 22,
+        }
+
+    # Use available CPU capacity for preprocessing and encoding.
+    try:
+        torch.set_num_threads(cpu_cores)
+    except Exception:
+        pass
+
+    if has_cuda:
+        try:
+            torch.backends.cudnn.benchmark = True
+        except Exception:
+            pass
+
+    logger.info(
+        "Realtime preset auto-tuned | has_cuda=%s | cpu_cores=%d | nfe_step=%d | max_chars=%d | speed_mult=%.2f",
+        has_cuda,
+        cpu_cores,
+        int(preset["nfe_step"]),
+        int(preset["max_chars"]),
+        float(preset["speed_mult"]),
+    )
+    return preset
+
+
 def _get_latency_preset_defaults(preset: str) -> Dict[str, float]:
     presets: Dict[str, Dict[str, float]] = {
         "quality": {
@@ -348,6 +394,7 @@ def _get_latency_preset_defaults(preset: str) -> Dict[str, float]:
             "speed_mult": 1.15,
             "min_chars": 30,
         },
+        "realtime_max": _auto_tune_realtime_preset(),
     }
     return presets.get(preset, presets["ultra"])
 
@@ -366,12 +413,12 @@ def _resolve_latency_runtime_values(
         )
 
     preset = latency_preset_override.strip().lower()
-    if preset not in {"quality", "balanced", "fast", "ultra"}:
+    if preset not in {"quality", "balanced", "fast", "ultra", "realtime_max"}:
         raise HTTPException(
             status_code=400,
             detail={
                 "error": {
-                    "message": "latency_preset must be one of: quality, balanced, fast, ultra",
+                    "message": "latency_preset must be one of: quality, balanced, fast, ultra, realtime_max",
                     "type": "invalid_request_error",
                     "param": "latency_preset",
                     "code": "invalid_latency_preset",
@@ -569,8 +616,8 @@ DEFAULT_VOCAB_PATH = Path(os.getenv("JAITTS_VOCAB_PATH", BASE_DIR / "model" / "J
 VOICE_CATALOG_PATH = Path(os.getenv("JAITTS_VOICES_JSON", BASE_DIR / "voices.json"))
 EXPECTED_API_KEY = os.getenv("OPENAI_API_KEY")
 DEVICE = os.getenv("JAITTS_DEVICE")
-# ปรับคุณภาพของเสียงตาม preset ที่กำหนด (quality, balanced, fast, ultra)
-LATENCY_PRESET = os.getenv("JAITTS_LATENCY_PRESET", "ultra").lower()
+# ปรับคุณภาพของเสียงตาม preset ที่กำหนด (quality, balanced, fast, ultra, realtime_max)
+LATENCY_PRESET = os.getenv("JAITTS_LATENCY_PRESET", "realtime_max").lower()
 _PRESET_DEFAULTS = _get_latency_preset_defaults(LATENCY_PRESET)
 
 NFE_STEP = int(os.getenv("JAITTS_NFE_STEP", str(int(_PRESET_DEFAULTS["nfe_step"]))))
@@ -837,7 +884,10 @@ def create_speech(
             },
         )
 
-    audio, sample_rate = _synthesize_request_audio(request)
+    audio, sample_rate = _synthesize_request_audio(
+        request,
+        latency_preset_override=request.latency_preset,
+    )
 
     if format_name == "wav":
         payload = _encode_wav(audio, sample_rate)

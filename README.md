@@ -192,6 +192,7 @@ Optional environment variables:
 - `JAITTS_VOCAB_PATH`: override vocab path (default: `model/JaiTTS-F5TTS/vocab.txt`)
 - `JAITTS_VOICES_JSON`: override voice map path (default: `voices.json`)
 - `JAITTS_DEVICE`: force inference device (for example `cuda` or `cpu`)
+- `JAITTS_LATENCY_PRESET`: default latency preset (`quality`, `balanced`, `fast`, `ultra`, `realtime_max`)
 
 ### 4) Example request
 
@@ -203,7 +204,8 @@ curl -X POST "http://localhost:8000/v1/audio/speech" \
     "input": "สวัสดีครับ ยินดีต้อนรับ",
     "voice": "alloy",
     "response_format": "wav",
-    "speed": 1.0
+    "speed": 1.0,
+    "latency_preset": "realtime_max"
   }' --output speech.wav
 ```
 
@@ -219,7 +221,7 @@ curl -X POST "http://localhost:8000/v1/audio/speech/save" \
     "voice": "alloy",
     "speed": 1.0,
     "filename": "demo_saved.wav",
-    // ปรับคุณภาพของเสียงตาม preset ที่กำหนด (quality, balanced, fast, ultra)
+    // ปรับคุณภาพของเสียงตาม preset ที่กำหนด (quality, balanced, fast, ultra, realtime_max)
     "latency_preset": "balanced"
   }'
 ```
@@ -241,6 +243,7 @@ Example response:
 
 - Supported `response_format`: `wav`, `pcm`, `mp3`, `opus`, `aac`, `flac`.
 - Encoded formats (`mp3`, `opus`, `aac`, `flac`) require backend codec support in your local `torchaudio` installation.
+- `realtime_max` is optimized for low-latency interactive responses and auto-tunes by available machine resources (GPU/CPU).
 - The API is intended to be wire-compatible with OpenAI TTS clients while using local JaiTTS-F5TTS inference.
 
 ## Links
