@@ -1,0 +1,191 @@
+JaiTTS OpenAI-Compatible TTS API - How To Run (Windows)
+
+Prerequisites
+- Windows with Python 3.11+
+- Model files already present:
+  - model/JaiTTS-F5TTS/model.pt
+  - model/JaiTTS-F5TTS/vocab.txt
+
+Step 1) Open terminal in project folder
+- Example path:
+  C:\Users\UsEr\Desktop\thai_ai_chat\JaiTTS
+
+Step 2) Create virtual environment (first time only)
+- PowerShell:
+  py -3 -m venv .venv
+
+Step 3) Activate virtual environment
+- PowerShell:
+  .\.venv\Scripts\Activate.ps1
+
+Step 4) Install dependencies
+- Install full project deps:
+  py -3 -m pip install -r requirements.txt
+
+- If you only want API deps quickly:
+  py -3 -m pip install fastapi==0.116.1 uvicorn==0.35.0 f5-tts==1.1.7
+
+Step 5) Configure voices.json
+- Copy sample file:
+  Copy-Item voices.example.json voices.json
+
+- Edit voices.json and set real values for each voice:
+  {
+    "alloy": {
+      "reference_audio_path": "C:/path/to/reference.wav",
+      "reference_text": "Reference transcript for that audio"
+    }
+  }
+
+Notes:
+- reference_audio_path must point to an existing WAV file.
+- reference_text should match what is spoken in reference audio.
+
+Step 6) (Optional) Set API key
+- If you want bearer auth:
+  $env:OPENAI_API_KEY = "your_key_here"
+
+Step 7) Run server
+- Use python -m uvicorn (works even if Scripts path is not in PATH):
+  .\.venv\Scripts\python.exe -m uvicorn openai_tts_api:app --host 127.0.0.1 --port 8000
+
+- Health check in another terminal:
+  Invoke-WebRequest -Uri http://127.0.0.1:8000/health -UseBasicParsing | Select-Object -ExpandProperty Content
+
+Expected response:
+  {"status":"ok"}
+
+Step 8) Call OpenAI-style endpoint
+- PowerShell example (save output to speech.wav):
+  $body = @{
+    model = "jaitts-v1"
+    input = "sawasdee krub yin dee ton rab"
+    voice = "alloy"
+    response_format = "wav"
+    speed = 1.0
+  } | ConvertTo-Json
+
+  Invoke-WebRequest `
+    -Uri "http://127.0.0.1:8000/v1/audio/speech" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body $body `
+    -OutFile "speech.wav"
+
+- If OPENAI_API_KEY is set, add header:
+  -Headers @{ Authorization = "Bearer your_key_here" }
+
+Step 9) Stop server
+- In server terminal, press Ctrl+C.
+
+Troubleshooting
+- Error: "voice_not_configured"
+  - voices.json missing requested voice, or not found in working directory.
+
+- Error: "reference_audio_path does not exist"
+  - Fix file path to an existing WAV file.
+
+- Import or dependency errors
+  - Re-activate venv and re-run install commands.
+
+- Port 8000 already in use
+  - Run with another port:
+    .\.venv\Scripts\python.exe -m uvicorn openai_tts_api:app --host 127.0.0.1 --port 8001
+
+------------------------------------------------------------
+ฉบับภาษาไทย
+------------------------------------------------------------
+
+คู่มือรัน JaiTTS OpenAI-Compatible TTS API (Windows)
+
+สิ่งที่ต้องมี
+- Windows พร้อม Python 3.11+
+- มีไฟล์โมเดลอยู่แล้ว:
+  - model/JaiTTS-F5TTS/model.pt
+  - model/JaiTTS-F5TTS/vocab.txt
+
+ขั้นตอน 1) เปิดเทอร์มินัลในโฟลเดอร์โปรเจกต์
+- ตัวอย่างพาธ:
+  C:\Users\UsEr\Desktop\thai_ai_chat\JaiTTS
+
+ขั้นตอน 2) สร้าง virtual environment (ครั้งแรกเท่านั้น)
+- PowerShell:
+  py -3 -m venv .venv
+
+ขั้นตอน 3) เปิดใช้งาน virtual environment
+- PowerShell:
+  .\.venv\Scripts\Activate.ps1
+
+ขั้นตอน 4) ติดตั้ง dependencies
+- ติดตั้งทั้งหมดตามโปรเจกต์:
+  py -3 -m pip install -r requirements.txt
+
+- ถ้าต้องการเฉพาะ API แบบเร็ว:
+  py -3 -m pip install fastapi==0.116.1 uvicorn==0.35.0 f5-tts==1.1.7
+
+ขั้นตอน 5) ตั้งค่าไฟล์ voices.json
+- คัดลอกไฟล์ตัวอย่าง:
+  Copy-Item voices.example.json voices.json
+
+- แก้ไฟล์ voices.json ให้เป็นข้อมูลจริงของคุณ:
+  {
+    "alloy": {
+      "reference_audio_path": "C:/path/to/reference.wav",
+      "reference_text": "ข้อความที่ตรงกับเสียงอ้างอิง"
+    }
+  }
+
+หมายเหตุ:
+- reference_audio_path ต้องเป็นไฟล์ WAV ที่มีอยู่จริง
+- reference_text ควรตรงกับคำพูดในไฟล์เสียงอ้างอิง
+
+ขั้นตอน 6) (ไม่บังคับ) ตั้งค่า API key
+- ถ้าต้องการเปิดใช้ Bearer auth:
+  $env:OPENAI_API_KEY = "your_key_here"
+
+ขั้นตอน 7) รันเซิร์ฟเวอร์
+- แนะนำรันผ่าน python -m uvicorn (ใช้ได้แม้ PATH ยังไม่ชี้ Scripts):
+  .\.venv\Scripts\python.exe -m uvicorn openai_tts_api:app --host 127.0.0.1 --port 8000
+
+- ทดสอบ health check ในอีกเทอร์มินัล:
+  Invoke-WebRequest -Uri http://127.0.0.1:8000/health -UseBasicParsing | Select-Object -ExpandProperty Content
+
+ผลที่ควรได้:
+  {"status":"ok"}
+
+ขั้นตอน 8) เรียก endpoint แบบ OpenAI
+- ตัวอย่าง PowerShell (บันทึกผลเป็น speech.wav):
+  $body = @{
+    model = "jaitts-v1"
+    input = "สวัสดีครับ ยินดีต้อนรับ"
+    voice = "alloy"
+    response_format = "wav"
+    speed = 1.0
+  } | ConvertTo-Json
+
+  Invoke-WebRequest `
+    -Uri "http://127.0.0.1:8000/v1/audio/speech" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body $body `
+    -OutFile "speech.wav"
+
+- ถ้าตั้ง OPENAI_API_KEY ไว้ ให้ใส่ header เพิ่ม:
+  -Headers @{ Authorization = "Bearer your_key_here" }
+
+ขั้นตอน 9) หยุดเซิร์ฟเวอร์
+- ไปที่เทอร์มินัลที่รันเซิร์ฟเวอร์ แล้วกด Ctrl+C
+
+แก้ปัญหาเบื้องต้น
+- Error: "voice_not_configured"
+  - ยังไม่ได้ตั้งค่าเสียงใน voices.json หรือไม่มี voice นั้นในไฟล์
+
+- Error: "reference_audio_path does not exist"
+  - พาธไฟล์เสียงอ้างอิงไม่ถูกต้อง หรือไฟล์ไม่มีอยู่จริง
+
+- Import error / dependency error
+  - เปิด venv ใหม่ แล้วติดตั้ง dependencies ซ้ำอีกครั้ง
+
+- พอร์ต 8000 ถูกใช้งานอยู่
+  - เปลี่ยนพอร์ต เช่น:
+    .\.venv\Scripts\python.exe -m uvicorn openai_tts_api:app --host 127.0.0.1 --port 8001

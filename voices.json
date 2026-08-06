@@ -1,0 +1,10 @@
+{
+  "alloy": {
+    "reference_audio_path": "ex_sound/reference.wav",
+    "reference_text": "สวัสดีครับ นี่คือเสียงอ้างอิง"
+  },
+  "echo": {
+    "reference_audio_path": "ex_sound/another_reference.wav",
+    "reference_text": "สวัสดีค่ะ นี่คือตัวอย่างอีกเสียง"
+  }
+}
