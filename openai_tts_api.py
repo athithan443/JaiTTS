@@ -230,11 +230,68 @@ def _resolve_reference_audio_path(raw_path: str, catalog_path: Path) -> str:
 
 
 def _split_text_for_inference(text: str, max_chars: int) -> list[str]:
+    def _is_thai_char(ch: str) -> bool:
+        """Check if character is Thai."""
+        return "\u0E00" <= ch <= "\u0E7F"
+    
+    def _is_thai_combining_mark(ch: str) -> bool:
+        """Check if character is a Thai combining mark (vowel, tone, etc)."""
+        # Thai vowels above, below, and combining marks
+        thai_combining = "\u0E31\u0E34\u0E35\u0E36\u0E37\u0E47\u0E48\u0E49\u0E4A\u0E4B\u0E4C\u0E4D"
+        return ch in thai_combining or unicodedata.combining(ch) != 0
+    
+    def _find_safe_thai_break(s: str, end: int) -> int:
+        """Find a safe break point for Thai text by backtracking if needed."""
+        if end <= 0 or end > len(s):
+            return end
+        
+        # If we're about to cut right before a Thai combining mark, move forward
+        while end < len(s) and _is_thai_combining_mark(s[end]):
+            end += 1
+        
+        # If we're cutting in the middle of Thai characters, try to backtrack
+        # to find a safe boundary (space, punctuation, or complete syllable)
+        if end > 0 and _is_thai_char(s[end - 1]):
+            # Look back from the potential cut point to find a safe break
+            lookback_pos = end - 1
+            
+            # Skip back over Thai combining marks to find the consonant
+            while lookback_pos > 0 and _is_thai_combining_mark(s[lookback_pos]):
+                lookback_pos -= 1
+            
+            # Now lookback_pos is at a Thai consonant or the character before Thai text
+            # Check if there's a space or punctuation that would be a natural break
+            search_pos = lookback_pos
+            while search_pos > 0:
+                if s[search_pos] == ' ' or s[search_pos] in ".,!?;:\n":
+                    # Found a natural boundary (punctuation or space)
+                    return search_pos + 1
+                elif not _is_thai_char(s[search_pos]):
+                    # Found a non-Thai character (but not space/punct), safe to break after previous Thai
+                    return search_pos + 1
+                else:
+                    # It's Thai, keep looking back
+                    if search_pos > 0 and _is_thai_combining_mark(s[search_pos - 1]):
+                        search_pos -= 1
+                    else:
+                        search_pos -= 1
+                        if search_pos == 0:
+                            break
+                        if not _is_thai_char(s[search_pos]):
+                            return search_pos + 1
+        
+        return end
+    
     def _take_safe_segment(s: str, start: int, max_len: int) -> tuple[str, int]:
         end = min(len(s), start + max_len)
-        # Do not end right before Thai/Unicode combining marks.
+        
+        # Smart Thai-aware break point detection
+        end = _find_safe_thai_break(s, end)
+        
+        # Also respect combining marks that come after (Unicode normalization safety)
         while end < len(s) and unicodedata.combining(s[end]) != 0:
             end += 1
+        
         segment = s[start:end]
         return segment, end
 
